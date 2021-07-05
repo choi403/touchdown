@@ -110,11 +110,11 @@ device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cp
 
 # set up summary writer for tensorboard logging
 if args.summary:
-    writer = SummaryWriter(os.path.join('/home/hc839/street-view-navigation/touchdown_location/runs/', run_name))
+    writer = SummaryWriter(os.path.join('./runs', run_name))
     counters = {'train': 0, 'tune': 0, 'dev': 0}
 
 if args.log:
-    out_dir = os.path.join('/home/hc839/street-view-navigation/touchdown_location/logs/', run_name)
+    out_dir = os.path.join('./logs', run_name)
     os.system('mkdir {}'.format(out_dir))
     print('Log directory created under {}'.format(out_dir))
     
