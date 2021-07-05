@@ -2,7 +2,6 @@
 
 Before running the scripts, set paths for `data_dir`, `image_dir`, and `target_dir`.
 
-
 To run model Concat:
 
 ```
@@ -27,3 +26,8 @@ To run model LingUNet:
 python3 train.py --embed_dropout 0.5 --lr 0.0005 --model lingunet --bidirectional True --num_lingunet_layers 2 --log --summary --name lingunet
 ```
 
+(William) Modified instructions for testing (in root):
+
+```
+python3 ./sdr/train.py --embed_dropout 0.5 --lr 0.001 --model concat --bidirectional True --log --name concat --data_dir data/ --image_dir image/ --target_dir target/
+```
