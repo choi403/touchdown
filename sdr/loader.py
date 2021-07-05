@@ -12,6 +12,7 @@ cpu = torch.device('cpu')
 
 class Loader:
     def __init__(self, data_dir, image_dir, target_dir):
+        print(f'data_dir, image_dir, target_dir: {data_dir}, {image_dir}, {target_dir}')
         self.data_dir = data_dir
         self.vocab = Vocabulary()
         self.max_length = 0
