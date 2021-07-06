@@ -28,7 +28,7 @@ python3 train.py --embed_dropout 0.5 --lr 0.0005 --model lingunet --bidirectiona
 
 (William) Modified instructions for testing (in root):
 
-- Look at cap2sg.ipynb of the WSSGG repo (in readme.md)
+<!-- - Look at cap2sg.ipynb of the WSSGG repo (in readme.md) -->
 
 ```
 python3 ./sdr/train.py --embed_dropout 0.5 --lr 0.001 --model concat --bidirectional True --log --name concat --data_dir data/ --image_dir image/ --target_dir target/
