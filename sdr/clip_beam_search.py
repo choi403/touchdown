@@ -258,14 +258,14 @@ def get_text_features(texts, model, tokenizer):
 
 
 # ! Test implementation
-def greedy_search(image, texts, model, tokenizer):
-    cropped_1 = crop(image, 3, 3)
+def greedy_search(image, texts, model, tokenizer, rows, columns):
+    cropped_1 = crop(image, rows, columns)
     
     image_features_1 = get_image_features(cropped_1, model)
     text_features_1 = get_text_features(texts[0], model, tokenizer)
     
     similarity_1 = text_features_1.cpu().numpy() @ image_features_1.cpu().numpy().T
     
-    print(similarity_1)
+    return similarity_1, cropped_1
 
     
