@@ -267,7 +267,7 @@ def greedy_search(image, texts, model, tokenizer, rows_columns):
     similarity_1 = text_features_1.cpu().numpy() @ image_features_1.cpu().numpy().T
     
     # ! cropped_1[0]: hardcoded
-    cropped_2 = crop(cropped_1[0], rows_columns[0][0], rows_columns[0][1])
+    cropped_2 = crop(cropped_1[0][0], rows_columns[1][0], rows_columns[1][1])
     
     image_features_2 = get_image_features(cropped_2, model)
     text_features_2 = get_text_features(texts[1], model, tokenizer)
