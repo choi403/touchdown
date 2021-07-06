@@ -167,6 +167,10 @@ from PIL import Image
 # ! Slice image
 # ! Taken and modified from https://stackoverflow.com/questions/5953373/how-to-split-image-into-multiple-pieces-in-python
 def crop(input, row, col):
+    '''
+        input: PIL Image
+        returns a 2d nested list of cropped pieces (PIL Images)
+    '''
     #print(input)
     #input.save('orig.jpg')
     cropped_images = []
@@ -209,6 +213,12 @@ def get_image_features(cropped_images, model):
     
     images = []
     
+    preprocess = Compose([
+        Resize(model.input_resolution.item(), interpolation=Image.BICUBIC),
+        CenterCrop(model.input_resolution.item()),
+        ToTensor()
+    ])
+    
     # Preprocess 
     for i in range(row):
         for j in range(col):
@@ -249,13 +259,6 @@ def get_text_features(texts, model, tokenizer):
 
 # ! Test implementation
 def greedy_search(image, texts, model, tokenizer):
-    
-    preprocess = Compose([
-        Resize(model.input_resolution.item(), interpolation=Image.BICUBIC),
-        CenterCrop(model.input_resolution.item()),
-        ToTensor()
-    ])
-    
     cropped_1 = crop(image, 3, 3)
     
     image_features_1 = get_image_features(cropped_1, model)
