@@ -15,7 +15,7 @@ import regex as re
 
 import os
 import skimage
-import IPython.display
+# import IPython.display
 import matplotlib.pyplot as plt
 from PIL import Image
 import numpy as np
@@ -267,7 +267,7 @@ def greedy_search(image, texts, model, tokenizer, rows_columns):
     similarity_1 = text_features_1.cpu().numpy() @ image_features_1.cpu().numpy().T
     
     # ! cropped_1[0]: hardcoded
-    cropped_2 = crop(cropped_1[0][0], rows_columns[1][0], rows_columns[1][1])
+    cropped_2 = crop(cropped_1[0][1], rows_columns[1][0], rows_columns[1][1])
     
     image_features_2 = get_image_features(cropped_2, model)
     text_features_2 = get_text_features(texts[1], model, tokenizer)
@@ -277,3 +277,56 @@ def greedy_search(image, texts, model, tokenizer, rows_columns):
     return similarity_1, cropped_1, similarity_2, cropped_2
 
     
+def greedy_search_custom_images(images, texts, model, tokenizer):
+    image_features_1 = get_image_features(images, model)
+    text_features_1 = get_text_features(texts[0], model, tokenizer)
+    
+    similarity_1 = text_features_1.cpu().numpy() @ image_features_1.cpu().numpy().T
+    
+    return similarity_1, images
+
+def get_grid_search_input_images(input_image, num_rows, num_cols):
+    scale = .5
+
+    star_image = Image.open('yellow_star.png', 'r')
+    star_image_w, star_image_h = star_image.size
+    star_image = star_image.resize((int(star_image_w * scale), int(star_image_h * scale)), Image.ANTIALIAS)
+    star_image_w, star_image_h = star_image.size
+
+    cropped_images = []
+
+    # input_image = Image.new('RGBA', (1440, 900), (255, 255, 255, 255))
+
+    imgwidth, imgheight = input_image.size
+    height = imgheight // num_rows
+    width = imgwidth // num_cols
+
+
+    for i in range(0,imgheight - (imgheight % height),height):
+        cropped_row = []
+        for j in range(0,imgwidth - (imgwidth % width),width):
+            background = input_image.copy()
+
+            offset = (j, i)
+            background.paste(star_image, offset, star_image)
+            
+            #a.save(f'b{i}{j}.jpg')
+            cropped_row.append(background)
+        cropped_images.append(cropped_row)
+    
+    return cropped_images
+
+def single_image_grid_search(input_image, texts, model, tokenizer, num_rows, num_cols):
+
+    for i in texts:
+        for j in i:
+            j = j.lower().replace('touchdown', 'yellow star').replace('waldo', 'yellow star')
+
+    images = get_grid_search_input_images(input_image, num_rows, num_cols)
+
+    image_features_1 = get_image_features(images, model)
+    text_features_1 = get_text_features(texts[0], model, tokenizer)
+    
+    similarity_1 = text_features_1.cpu().numpy() @ image_features_1.cpu().numpy().T
+    
+    return similarity_1, images
