@@ -310,6 +310,8 @@ def get_grid_search_input_images(input_image, num_rows, num_cols):
             offset = (j, i)
             background.paste(star_image, offset, star_image)
             
+
+            
             #a.save(f'b{i}{j}.jpg')
             cropped_row.append(background)
         cropped_images.append(cropped_row)
@@ -330,3 +332,89 @@ def single_image_grid_search(input_image, texts, model, tokenizer, num_rows, num
     similarity_1 = text_features_1.cpu().numpy() @ image_features_1.cpu().numpy().T
     
     return similarity_1, images
+
+
+# Taken from https://www.pyimagesearch.com/2015/03/23/sliding-windows-for-object-detection-with-python-and-opencv/
+def get_sliding_window_np(image_numpy, stepSize, windowSize):
+	for y in range(0, image_numpy.shape[0], stepSize):
+		for x in range(0, image_numpy.shape[1], stepSize):
+			yield (x, y, image_numpy[y:y + windowSize[1], x:x + windowSize[0]])
+
+def greedy_search_sliding_window(image, text_prompt, step_size, window_size, model, tokenizer):
+    image_numpy = np.array(image) 
+
+    list_window_tuple = list(get_sliding_window_np(image_numpy, step_size, window_size))
+    list_window_image_npy = list(i[2] for i in list_window_tuple)
+    list_window_positions = list((i[0], i[1]) for i in list_window_tuple)
+
+    print(list_window_positions)
+
+    list_window_image_pil = [Image.fromarray(i) for i in list_window_image_npy]
+
+    # print(list_window)
+    
+    image_features = get_image_features([list_window_image_pil,], model)
+
+    text_features = get_text_features(text_prompt, model, tokenizer)
+    
+    similarity = text_features.cpu().numpy() @ image_features.cpu().numpy().T
+
+    print(text_features.cpu().numpy().shape, image_features.cpu().numpy().T.shape)
+    
+    return similarity, list_window_image_pil
+
+if __name__ == '__main__':
+    model = torch.jit.load("model.pt").cuda().eval()
+    input_resolution = model.input_resolution.item()
+    context_length = model.context_length.item()
+    vocab_size = model.vocab_size.item()
+
+    tokenizer = SimpleTokenizer()
+
+    texts = [['look for the red beverage cooler or refrigerator to the left of the man setting the table.'], ['look to the bottom left of the cooler.'], ['waldo is at the bottom left, slightly off the ground.']]
+
+    # ! texts input should be a list (text_features does so)
+
+    temp = Image.open('./test_images/pano_apqqbmmivfquan.jpg').convert('RGB')
+    similarity, list_window = greedy_search_sliding_window(temp, texts[0], 75, (600, 600), model, tokenizer)
+
+
+    # similarity_flattened = []
+    # for i in similarity:
+    #     similarity_flattened.extend(i)
+
+
+    # num_images = len(list_window)
+
+    # fig, axes = plt.subplots(num_images)
+    # fig.set_size_inches(40, 40)
+
+    # print(num_images)
+        
+    # preprocess = Compose([
+    #     Resize(model.input_resolution.item(), interpolation=Image.BICUBIC),
+    #     CenterCrop(model.input_resolution.item()),
+    #     ToTensor()
+    # ])
+
+    # for j in range(num_images):
+    #     axes[j].imshow(preprocess(list_window[j].convert("RGB")).permute(1,2,0))
+    #     axes[j].set_title(similarity_flattened[j])
+
+    # plt.suptitle(texts[0][0])
+    # plt.tight_layout()
+
+    # plt.savefig('./result_images/windows.png')
+    # fig.clf()
+
+
+    # ! heatmap
+    print(similarity)
+    # print(list_window)
+
+    # ! 100, (400, 400) -> (23, 46)
+    plt.imshow(np.array(similarity).reshape((31, 61)), cmap=plt.cm.gist_gray)
+    plt.savefig('./result_images/heatmap.png')
+    
+
+
