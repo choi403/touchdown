@@ -375,7 +375,58 @@ def greedy_search_sliding_window_step(image_numpy, text_prompt, step_size, windo
     
     return similarity, list_window_image_npy, list_window_positions
 
-def 
+
+# TODO: Per-text, per-prompt greedy search
+# TODO: changing 
+
+def greedy_search_sliding_window(image_numpy, text_prompts, step_sizes, window_sizes, model, tokenizer):
+    # initial input value for greedy search
+    selected_window = image_numpy
+
+    list_selected_window = []
+    list_similarities = []
+    list_positions = []
+    list_selected_index = []
+
+    for i, text_prompt in enumerate(text_prompts):
+        similarity, list_window_image_npy, list_window_positions = greedy_search_sliding_window_step(
+                                                                                            selected_window,
+                                                                                            text_prompt,
+                                                                                            step_sizes[i],
+                                                                                            window_sizes[i],
+                                                                                            model,
+                                                                                            tokenizer)
+        max_similarity = similarity.max(axis=1)[0]
+        # print(max_similarity)
+        idx_max_similarity = similarity.argmax(axis=1)[0]
+        # print(idx_max_similarity)
+        selected_window = list_window_image_npy[idx_max_similarity]
+
+        print(f'Step {i}: Prompt <{text_prompt}> --- Max similarity = {max_similarity} at pos {list_window_positions[idx_max_similarity]} with index {idx_max_similarity}')
+
+        list_selected_window.append(selected_window)
+        list_similarities.append(similarity)
+        list_positions.append(list_window_positions)
+        list_selected_index.append(idx_max_similarity)
+
+    return list_similarities, list_selected_window, list_positions, list_selected_index
+
+def get_width_height(list_positions):
+    '''
+        find width and height of the similarity heatmap from the flattened list of positions.
+    '''
+    width = len(list(i for i in list_positions if i[1] == 0))
+    height = len(list_positions) / width
+
+    assert int(width) == width and int(height) == height
+
+    return int(width), int(height)
+    
+
+
+
+
+
 
 if __name__ == '__main__':
     model = torch.jit.load("model.pt").cuda().eval()
@@ -385,52 +436,49 @@ if __name__ == '__main__':
 
     tokenizer = SimpleTokenizer()
 
-    texts = [['look for the red beverage cooler or refrigerator to the left of the man setting the table.'], ['look to the bottom left of the cooler.'], ['waldo is at the bottom left, slightly off the ground.']]
+    texts = ['look for the red beverage cooler or refrigerator to the left of the man setting the table.', 'look to the bottom left of the cooler.', 'waldo is at the bottom left, slightly off the ground.']
 
     # ! texts input should be a list (text_features does so)
 
-    temp = Image.open('./test_images/pano_apqqbmmivfquan.jpg').convert('RGB')
-    similarity, list_window = greedy_search_sliding_window(temp, texts[0][0], 80, (1400, 1400), model, tokenizer)
+    temp = np.array(Image.open('./test_images/pano_apqqbmmivfquan.jpg').convert('RGB'))
+    # similarity, list_window, list_positions = greedy_search_sliding_window_step(temp, texts[0], 800, (1400, 1400), model, tokenizer)
+
+    list_similarity, list_selected_window, list_position, list_selected_index = greedy_search_sliding_window(temp, texts, [100, 100, 100], [(800, 800), (500, 500), (300, 300)], model, tokenizer)
+
+    for i in list_position:
+        print(get_width_height(i))
 
 
-    # similarity_flattened = []
-    # for i in similarity:
-    #     similarity_flattened.extend(i)
+    # ! plot step by step greedy search (heatmap, window)
+    # ! n steps -> n heatmaps + n windows = 2n
 
 
-    # num_images = len(list_window)
+    fig, axes = plt.subplots(2, len(list_similarity))
+    fig.set_size_inches(40, 40)
 
-    # fig, axes = plt.subplots(num_images)
-    # fig.set_size_inches(40, 40)
-
-    # print(num_images)
         
-    # preprocess = Compose([
-    #     Resize(model.input_resolution.item(), interpolation=Image.BICUBIC),
-    #     CenterCrop(model.input_resolution.item()),
-    #     ToTensor()
-    # ])
+    preprocess = Compose([
+        Resize(model.input_resolution.item(), interpolation=Image.BICUBIC),
+        CenterCrop(model.input_resolution.item()),
+        ToTensor()
+    ])
 
-    # for j in range(num_images):
-    #     axes[j].imshow(preprocess(list_window[j].convert("RGB")).permute(1,2,0))
-    #     axes[j].set_title(similarity_flattened[j])
+    for i, similarity in enumerate(list_similarity):
+        axes[i, 0].imshow(preprocess(Image.fromarray(list_selected_window[i]).convert("RGB")).permute(1,2,0))
+        axes[i, 0].set_title(similarity)
+
+        axes[i, 1].imshow(np.array(similarity).reshape(get_width_height(list_position[i])), cmap=plt.cm.gist_gray)
+        axes[i, 1].set_title(list_position[i][list_selected_index[i]])
 
     # plt.suptitle(texts[0][0])
-    # plt.tight_layout()
+    plt.tight_layout()
 
-    # plt.savefig('./result_images/windows.png')
+    plt.savefig('./result_images/greedy_search_1.png')
     # fig.clf()
 
 
     # ! heatmap
-    print(similarity)
-    # print(list_window)
-
     # ! 100, (400, 400) -> (23, 46)
     # ! 75, (600, 600) -> (31, 61)
     # ! 80, (800, 800) -> (29, 57) 
-    plt.imshow(np.array(similarity).reshape((29, 57)), cmap=plt.cm.gist_gray)
-    plt.savefig('./result_images/heatmap.png')
-    
 
-    # test
