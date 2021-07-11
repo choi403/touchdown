@@ -350,7 +350,8 @@ def greedy_search_sliding_window_step(image_numpy, text_prompt, step_size, windo
         tokenizer: tokenizer (SimpleTokenizer())
         returns: 
             similarity: nested list of all similarities ([[2.10, ..., 3.10]], nested list length = len(list_window_image_pil))
-            list_window_image_npy: list of numpy window images 
+            list_window_image_npy: list of numpy window images (numpy arrays)
+            list_window_positions: list of window positions ((x, y) tuples)
     '''
     # image_numpy = np.array(image) 
 
@@ -358,7 +359,7 @@ def greedy_search_sliding_window_step(image_numpy, text_prompt, step_size, windo
     list_window_image_npy = list(i[2] for i in list_window_tuple)
     list_window_positions = list((i[0], i[1]) for i in list_window_tuple)
 
-    print(list_window_positions)
+    # print(list_window_positions)
 
     list_window_image_pil = [Image.fromarray(i) for i in list_window_image_npy]
 
@@ -372,7 +373,9 @@ def greedy_search_sliding_window_step(image_numpy, text_prompt, step_size, windo
 
     print(text_features.cpu().numpy().shape, image_features.cpu().numpy().T.shape)
     
-    return similarity, list_window_image_npy
+    return similarity, list_window_image_npy, list_window_positions
+
+def 
 
 if __name__ == '__main__':
     model = torch.jit.load("model.pt").cuda().eval()
