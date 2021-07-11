@@ -376,7 +376,7 @@ if __name__ == '__main__':
     # ! texts input should be a list (text_features does so)
 
     temp = Image.open('./test_images/pano_apqqbmmivfquan.jpg').convert('RGB')
-    similarity, list_window = greedy_search_sliding_window(temp, texts[0], 75, (600, 600), model, tokenizer)
+    similarity, list_window = greedy_search_sliding_window(temp, texts[0], 80, (1400, 1400), model, tokenizer)
 
 
     # similarity_flattened = []
@@ -413,7 +413,9 @@ if __name__ == '__main__':
     # print(list_window)
 
     # ! 100, (400, 400) -> (23, 46)
-    plt.imshow(np.array(similarity).reshape((31, 61)), cmap=plt.cm.gist_gray)
+    # ! 75, (600, 600) -> (31, 61)
+    # ! 80, (800, 800) -> (29, 57) 
+    plt.imshow(np.array(similarity).reshape((29, 57)), cmap=plt.cm.gist_gray)
     plt.savefig('./result_images/heatmap.png')
     
 
