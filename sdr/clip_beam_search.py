@@ -239,6 +239,7 @@ def get_image_features(cropped_images, model):
     return image_features
 
 def get_text_features(texts, model, tokenizer):
+    texts = [texts,]
     text_tokens = [tokenizer.encode(desc) for desc in texts]
     
     text_input = torch.zeros(len(text_tokens), model.context_length, dtype=torch.long)
@@ -257,8 +258,8 @@ def get_text_features(texts, model, tokenizer):
     return text_features
 
 
-# ! Test implementation
-def greedy_search(image, texts, model, tokenizer, rows_columns):
+# ! Test implementation, not used
+def _greedy_search(image, texts, model, tokenizer, rows_columns):
     cropped_1 = crop(image, rows_columns[0][0], rows_columns[0][1])
     
     image_features_1 = get_image_features(cropped_1, model)
@@ -276,8 +277,8 @@ def greedy_search(image, texts, model, tokenizer, rows_columns):
     
     return similarity_1, cropped_1, similarity_2, cropped_2
 
-    
-def greedy_search_custom_images(images, texts, model, tokenizer):
+# ! not used
+def _greedy_search_custom_images(images, texts, model, tokenizer):
     image_features_1 = get_image_features(images, model)
     text_features_1 = get_text_features(texts[0], model, tokenizer)
     
@@ -285,10 +286,10 @@ def greedy_search_custom_images(images, texts, model, tokenizer):
     
     return similarity_1, images
 
-def get_grid_search_input_images(input_image, num_rows, num_cols):
-    scale = .5
+def get_grid_overlayed_images(input_image, num_rows, num_cols):
+    scale = .60
 
-    star_image = Image.open('yellow_star.png', 'r')
+    star_image = Image.open('ipod_timesnewroman_white.png', 'r').convert("RGBA")
     star_image_w, star_image_h = star_image.size
     star_image = star_image.resize((int(star_image_w * scale), int(star_image_h * scale)), Image.ANTIALIAS)
     star_image_w, star_image_h = star_image.size
@@ -310,28 +311,25 @@ def get_grid_search_input_images(input_image, num_rows, num_cols):
             offset = (j, i)
             background.paste(star_image, offset, star_image)
             
-
-            
-            #a.save(f'b{i}{j}.jpg')
+            background.save(f'./result_images/temp/{i}-{j}.jpg')
             cropped_row.append(background)
         cropped_images.append(cropped_row)
     
     return cropped_images
 
-def single_image_grid_search(input_image, texts, model, tokenizer, num_rows, num_cols):
+def single_image_grid_search(image_np, text, model, tokenizer, num_rows, num_cols):
+    text = text.lower().replace('touchdown', 'iPod').replace('waldo', 'iPod')
 
-    for i in texts:
-        for j in i:
-            j = j.lower().replace('touchdown', 'yellow star').replace('waldo', 'yellow star')
+    images = get_grid_overlayed_images(Image.fromarray(image_np), num_rows, num_cols)
 
-    images = get_grid_search_input_images(input_image, num_rows, num_cols)
+    image_features = get_image_features(images, model)
+    text_features = get_text_features(text, model, tokenizer)
 
-    image_features_1 = get_image_features(images, model)
-    text_features_1 = get_text_features(texts[0], model, tokenizer)
+    print(len(image_features), len(text_features))
     
-    similarity_1 = text_features_1.cpu().numpy() @ image_features_1.cpu().numpy().T
+    similarity = text_features.cpu().numpy() @ image_features.cpu().numpy().T
     
-    return similarity_1, images
+    return similarity, images
 
 
 # Taken from https://www.pyimagesearch.com/2015/03/23/sliding-windows-for-object-detection-with-python-and-opencv/
@@ -342,6 +340,8 @@ def get_sliding_window_np(image_numpy, stepSize, windowSize):
 
 def greedy_search_sliding_window_step(image_numpy, text_prompt, step_size, window_size, model, tokenizer):
     '''
+        Single step of the greedy search.
+
         image_numpy: RGB image numpy array 
         text_prompt: A single sentence (ex: 'A photo of a dog')
         step_size: sliding window step size (int)
@@ -355,7 +355,8 @@ def greedy_search_sliding_window_step(image_numpy, text_prompt, step_size, windo
     '''
     # image_numpy = np.array(image) 
 
-    list_window_tuple = list(get_sliding_window_np(image_numpy, step_size, window_size))
+    # ! exclude windows on edges
+    list_window_tuple = list(i for i in get_sliding_window_np(image_numpy, step_size, window_size) if i[2].shape[:2] == (window_size))
     list_window_image_npy = list(i[2] for i in list_window_tuple)
     list_window_positions = list((i[0], i[1]) for i in list_window_tuple)
 
@@ -367,7 +368,7 @@ def greedy_search_sliding_window_step(image_numpy, text_prompt, step_size, windo
     
     image_features = get_image_features([list_window_image_pil,], model)
 
-    text_features = get_text_features([text_prompt,], model, tokenizer)
+    text_features = get_text_features(text_prompt, model, tokenizer)
     
     similarity = text_features.cpu().numpy() @ image_features.cpu().numpy().T
 
@@ -377,7 +378,7 @@ def greedy_search_sliding_window_step(image_numpy, text_prompt, step_size, windo
 
 
 # TODO: Per-text, per-prompt greedy search
-# TODO: changing 
+# TODO: changing step_size, window_size along steps
 
 def greedy_search_sliding_window(image_numpy, text_prompts, step_sizes, window_sizes, model, tokenizer):
     # initial input value for greedy search
@@ -402,6 +403,9 @@ def greedy_search_sliding_window(image_numpy, text_prompts, step_sizes, window_s
         # print(idx_max_similarity)
         selected_window = list_window_image_npy[idx_max_similarity]
 
+        im = Image.fromarray(selected_window)
+        im.save(f'./result_images/temp/{i}.jpg')
+
         print(f'Step {i}: Prompt <{text_prompt}> --- Max similarity = {max_similarity} at pos {list_window_positions[idx_max_similarity]} with index {idx_max_similarity}')
 
         list_selected_window.append(selected_window)
@@ -420,7 +424,7 @@ def get_width_height(list_positions):
 
     assert int(width) == width and int(height) == height
 
-    return int(width), int(height)
+    return int(height), int(width)
     
 
 
@@ -436,14 +440,17 @@ if __name__ == '__main__':
 
     tokenizer = SimpleTokenizer()
 
-    texts = ['look for the red beverage cooler or refrigerator to the left of the man setting the table.', 'look to the bottom left of the cooler.', 'waldo is at the bottom left, slightly off the ground.']
+    texts = ['look for the red beverage cooler or refrigerator to the left of the man setting the table.', 'look to the bottom left of the cooler.', 'An iPod is at the bottom left, slightly off the ground.']
+
+    accumulated_texts = [' '.join(texts[:i+1]) for (i, e) in enumerate(texts)]
+
 
     # ! texts input should be a list (text_features does so)
 
     temp = np.array(Image.open('./test_images/pano_apqqbmmivfquan.jpg').convert('RGB'))
     # similarity, list_window, list_positions = greedy_search_sliding_window_step(temp, texts[0], 800, (1400, 1400), model, tokenizer)
 
-    list_similarity, list_selected_window, list_position, list_selected_index = greedy_search_sliding_window(temp, texts, [100, 100, 100], [(800, 800), (500, 500), (300, 300)], model, tokenizer)
+    list_similarity, list_selected_window, list_position, list_selected_index = greedy_search_sliding_window(temp, accumulated_texts, [80, 80, 80], [(800, 800), (700, 700), (600, 600)], model, tokenizer)
 
     for i in list_position:
         print(get_width_height(i))
@@ -453,7 +460,7 @@ if __name__ == '__main__':
     # ! n steps -> n heatmaps + n windows = 2n
 
 
-    fig, axes = plt.subplots(2, len(list_similarity))
+    fig, axes = plt.subplots(len(list_similarity) + 1, 2)
     fig.set_size_inches(40, 40)
 
         
@@ -465,17 +472,28 @@ if __name__ == '__main__':
 
     for i, similarity in enumerate(list_similarity):
         axes[i, 0].imshow(preprocess(Image.fromarray(list_selected_window[i]).convert("RGB")).permute(1,2,0))
-        axes[i, 0].set_title(similarity)
+        axes[i, 0].set_title(similarity[0][list_selected_index[i]])
 
         axes[i, 1].imshow(np.array(similarity).reshape(get_width_height(list_position[i])), cmap=plt.cm.gist_gray)
         axes[i, 1].set_title(list_position[i][list_selected_index[i]])
 
     # plt.suptitle(texts[0][0])
+
+
+    # ! Then perform overlay grid search on the last selected window
+    last_similarity, last_images = single_image_grid_search(list_selected_window[-1], accumulated_texts[-1], model, tokenizer, 10, 10)
+
+    axes[-1, 0].imshow(preprocess(Image.fromarray(list_selected_window[-1]).convert("RGB")).permute(1,2,0))
+    axes[-1, 0].set_title(last_similarity[0][list_selected_index[-1]])
+
+    axes[-1, 1].imshow(np.array(last_similarity).reshape((10, 10)), cmap=plt.cm.gist_gray)
+    axes[-1, 1].set_title(accumulated_texts[-1])
+
+
     plt.tight_layout()
 
     plt.savefig('./result_images/greedy_search_1.png')
-    # fig.clf()
-
+    fig.clf()
 
     # ! heatmap
     # ! 100, (400, 400) -> (23, 46)
