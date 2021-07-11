@@ -290,7 +290,7 @@ def _greedy_search_custom_images(images, texts, model, tokenizer):
     return similarity_1, images
 
 def get_grid_overlayed_images(input_image, num_rows, num_cols, safe=False):
-    scale = .8
+    scale = 1.2
 
     star_image = Image.open('ipod_timesnewroman_white.png', 'r').convert("RGBA")
     star_image_w, star_image_h = star_image.size
@@ -324,7 +324,7 @@ def get_grid_overlayed_images(input_image, num_rows, num_cols, safe=False):
 
             background.paste(star_image, offset, star_image)
             
-            background.save(f'./result_images/temp/{i}-{j}.jpg')
+            # background.save(f'./result_images/temp/{i}-{j}.jpg')
             cropped_row.append(background)
         cropped_images.append(cropped_row)
     
@@ -422,8 +422,8 @@ def greedy_search_sliding_window(image_numpy, text_prompts, step_sizes, window_s
         # print(idx_max_similarity)
         selected_window = list_window_image_npy[idx_max_similarity]
 
-        im = Image.fromarray(selected_window)
-        im.save(f'./result_images/temp/{i}.jpg')
+        # im = Image.fromarray(selected_window)
+        # im.save(f'./result_images/temp/{i}.jpg')
 
         print(f'Step {i}: Prompt <{text_prompt}> --- Max similarity = {max_similarity} at pos {list_window_positions[idx_max_similarity]} with index {idx_max_similarity}')
 
@@ -489,17 +489,25 @@ if __name__ == '__main__':
         ToTensor()
     ])
 
-    original_texts = ['look for the red beverage cooler or refrigerator to the left of the man setting the table.', 'look to the bottom left of the cooler.', 'An iPod is at the bottom left, slightly off the ground.']
+    # original_texts = ['look for the red beverage cooler or refrigerator to the left of the man setting the table.', 'look to the bottom left of the cooler.', 'An iPod is at the bottom left, slightly off the ground.']
+    original_texts = ['find a brown door on the right of the room.', 'locate the candles that are close to the door.', 'waldo is on the wall right on top of the last candle that is on the left at the same level that is the air ventilation.']
+    # original_texts = ['find the small little step that you can step on to get up on the stage.', 'the back red colored wall has a large window.', 'above the window along where the wall meets the ceiling is a silver air vent.', 'waldo is on top of that air vent and his hand is pointing up to the round white light along the white pillar that people are sitting in front of.']
     accumulated_texts = [' '.join(original_texts[:i+1]) for (i, e) in enumerate(original_texts)]
-    texts = accumulated_texts
+    all_texts = [' '.join(original_texts) for i in range(len(original_texts) - 1)]
+    all_but_last_texts = all_texts[:-1] + [original_texts[-1]]
+    except_final_texts = [' '.join(original_texts[:-1]) for i in range(len(original_texts) - 1)] + [all_texts[0]]
+    texts = except_final_texts
 
 
     # ! texts input should be a list (text_features does so)
 
-    temp = np.array(Image.open('./test_images/pano_apqqbmmivfquan.jpg').convert('RGB'))
+    # fn = "../data/refer360images/indoor/restaurant/pano_apqqbmmivfquan.jpg"
+    fn = "../data/refer360images/indoor/restaurant/pano_afzjkcqouejqpf.jpg"
+    # fn = "../data/refer360images/indoor/restaurant/pano_aiqboxmskwofbk.jpg"
+    temp = np.array(Image.open(fn).convert('RGB'))
     # similarity, list_window, list_positions = greedy_search_sliding_window_step(temp, texts[0], 800, (1400, 1400), model, tokenizer)
 
-    list_similarity, list_selected_window, list_position, list_selected_index, (out_x, out_y) = greedy_search_sliding_window(temp, texts, [80, 80, 80], [(800, 800), (700, 700), (600, 600)], model, tokenizer)
+    list_similarity, list_selected_window, list_position, list_selected_index, (out_x, out_y) = greedy_search_sliding_window(temp, texts, [80, 80, 80, 80], [(2276, 2276), (1600, 1600), (1200, 1200), (1900, 1900)], model, tokenizer)
 
     print(f"after greedy search: (x, y) = {(out_x, out_y)}")
 
