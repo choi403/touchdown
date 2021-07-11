@@ -340,8 +340,19 @@ def get_sliding_window_np(image_numpy, stepSize, windowSize):
 		for x in range(0, image_numpy.shape[1], stepSize):
 			yield (x, y, image_numpy[y:y + windowSize[1], x:x + windowSize[0]])
 
-def greedy_search_sliding_window(image, text_prompt, step_size, window_size, model, tokenizer):
-    image_numpy = np.array(image) 
+def greedy_search_sliding_window_step(image_numpy, text_prompt, step_size, window_size, model, tokenizer):
+    '''
+        image_numpy: RGB image numpy array 
+        text_prompt: A single sentence (ex: 'A photo of a dog')
+        step_size: sliding window step size (int)
+        window_size: sliding window size (int, int)
+        model: CLIP model (model = torch.jit.load("model.pt").cuda().eval())
+        tokenizer: tokenizer (SimpleTokenizer())
+        returns: 
+            similarity: nested list of all similarities ([[2.10, ..., 3.10]], nested list length = len(list_window_image_pil))
+            list_window_image_npy: list of numpy window images 
+    '''
+    # image_numpy = np.array(image) 
 
     list_window_tuple = list(get_sliding_window_np(image_numpy, step_size, window_size))
     list_window_image_npy = list(i[2] for i in list_window_tuple)
@@ -355,13 +366,13 @@ def greedy_search_sliding_window(image, text_prompt, step_size, window_size, mod
     
     image_features = get_image_features([list_window_image_pil,], model)
 
-    text_features = get_text_features(text_prompt, model, tokenizer)
+    text_features = get_text_features([text_prompt,], model, tokenizer)
     
     similarity = text_features.cpu().numpy() @ image_features.cpu().numpy().T
 
     print(text_features.cpu().numpy().shape, image_features.cpu().numpy().T.shape)
     
-    return similarity, list_window_image_pil
+    return similarity, list_window_image_npy
 
 if __name__ == '__main__':
     model = torch.jit.load("model.pt").cuda().eval()
@@ -376,7 +387,7 @@ if __name__ == '__main__':
     # ! texts input should be a list (text_features does so)
 
     temp = Image.open('./test_images/pano_apqqbmmivfquan.jpg').convert('RGB')
-    similarity, list_window = greedy_search_sliding_window(temp, texts[0], 80, (1400, 1400), model, tokenizer)
+    similarity, list_window = greedy_search_sliding_window(temp, texts[0][0], 80, (1400, 1400), model, tokenizer)
 
 
     # similarity_flattened = []
