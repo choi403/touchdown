@@ -1,6 +1,7 @@
 
 # Taken and modified from  https://colab.research.google.com/github/openai/clip/blob/master/notebooks/Interacting_with_CLIP.ipynb#scrollTo=w1l_muuhZ_Nk
 # Setup
+import json
 import numpy as np
 import torch
 from torchvision.transforms import Compose, Resize, CenterCrop, ToTensor, Normalize
@@ -17,12 +18,56 @@ import os
 import skimage
 # import IPython.display
 import matplotlib.pyplot as plt
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
+
 import numpy as np
 
 from collections import OrderedDict
 import torch
 
+
+
+test_seen_filename = '../data/data_refer360/test.seen.json'
+
+def get_coordinates(xlng, ylat,
+                    full_w=4552,
+                    full_h=2276):
+        '''given lng lat returns coordinates in panorama image
+        '''
+        x = int(full_w * ((xlng + 180)/360.0))
+        y = int(full_h - full_h * ((ylat + 90)/180.0))
+        return x, y
+
+
+
+def load_refer360_data(filename):
+
+    all_data = dict()
+
+    with open(filename) as f:
+        data = json.load(f)
+
+    list_refexp = [i['refexp'] for i in data]
+    list_positions = [(i['xlng_deg'], i['ylat_deg']) for i in data]
+    list_coordinates = [get_coordinates(i['xlng_deg'], i['ylat_deg']) for i in data]
+    list_filenames = [i['img_src'] for i in data]
+    list_categories = [i['img_cat'] for i in data]
+    list_locations = [i['img_loc'] for i in data]
+
+    for i, l in enumerate(list_refexp):
+        list_refexp[i] = [' '.join(tokens) for tokens in l]
+
+    for i, e in enumerate(list_refexp):
+        temp = dict()
+        temp['refexp'] = list_refexp[i]
+        temp['coordinates'] = list_coordinates[i]
+        temp['filename'] = list_filenames[i]
+        
+        all_data[list_filenames[i]] = temp
+
+    return all_data, all_data.keys()
+
+    
 
 
 
@@ -290,9 +335,13 @@ def _greedy_search_custom_images(images, texts, model, tokenizer):
     return similarity_1, images
 
 def get_grid_overlayed_images(input_image, num_rows, num_cols, safe=False):
-    scale = 1.2
+    scale = 0.5 # ! used best with 3-step (default, "-1")
 
-    star_image = Image.open('ipod_timesnewroman_white.png', 'r').convert("RGBA")
+    # star_image = Image.open('ipod_timesnewroman_white.png', 'r').convert("RGBA")
+    star_image = Image.open('ipod_notosans_white.png', 'r').convert("RGBA")
+
+
+
     star_image_w, star_image_h = star_image.size
     star_image = star_image.resize((int(star_image_w * scale), int(star_image_h * scale)), Image.ANTIALIAS)
     star_image_w, star_image_h = star_image.size
@@ -477,102 +526,146 @@ def split_long_sentence(text, break_len=60):
 
 
 if __name__ == '__main__':
-    model = torch.jit.load("model.pt").cuda().eval()
-    tokenizer = SimpleTokenizer()
-    input_resolution = model.input_resolution.item()
-    context_length = model.context_length.item()
-    vocab_size = model.vocab_size.item()
+    sample_idx = 12
 
-    preprocess = Compose([
-        Resize(model.input_resolution.item(), interpolation=Image.BICUBIC),
-        CenterCrop(model.input_resolution.item()),
-        ToTensor()
-    ])
+    for sample_idx in range(110, 400):
+        try:
 
-    # original_texts = ['look for the red beverage cooler or refrigerator to the left of the man setting the table.', 'look to the bottom left of the cooler.', 'An iPod is at the bottom left, slightly off the ground.']
-    original_texts = ['find a brown door on the right of the room.', 'locate the candles that are close to the door.', 'waldo is on the wall right on top of the last candle that is on the left at the same level that is the air ventilation.']
-    # original_texts = ['find the small little step that you can step on to get up on the stage.', 'the back red colored wall has a large window.', 'above the window along where the wall meets the ceiling is a silver air vent.', 'waldo is on top of that air vent and his hand is pointing up to the round white light along the white pillar that people are sitting in front of.']
-    accumulated_texts = [' '.join(original_texts[:i+1]) for (i, e) in enumerate(original_texts)]
-    all_texts = [' '.join(original_texts) for i in range(len(original_texts) - 1)]
-    all_but_last_texts = all_texts[:-1] + [original_texts[-1]]
-    except_final_texts = [' '.join(original_texts[:-1]) for i in range(len(original_texts) - 1)] + [all_texts[0]]
-    texts = except_final_texts
+            list_data_dict, list_panorama_filename = load_refer360_data(test_seen_filename)
+            list_panorama_filename = list(list_panorama_filename)
+
+            print(list_panorama_filename[sample_idx])
 
 
-    # ! texts input should be a list (text_features does so)
+            model = torch.jit.load("model.pt").cuda().eval()
+            tokenizer = SimpleTokenizer()
+            input_resolution = model.input_resolution.item()
+            context_length = model.context_length.item()
+            vocab_size = model.vocab_size.item()
 
-    # fn = "../data/refer360images/indoor/restaurant/pano_apqqbmmivfquan.jpg"
-    fn = "../data/refer360images/indoor/restaurant/pano_afzjkcqouejqpf.jpg"
-    # fn = "../data/refer360images/indoor/restaurant/pano_aiqboxmskwofbk.jpg"
-    temp = np.array(Image.open(fn).convert('RGB'))
-    # similarity, list_window, list_positions = greedy_search_sliding_window_step(temp, texts[0], 800, (1400, 1400), model, tokenizer)
+            preprocess = Compose([
+                Resize(model.input_resolution.item(), interpolation=Image.BICUBIC),
+                CenterCrop(model.input_resolution.item()),
+                ToTensor()
+            ])
 
-    list_similarity, list_selected_window, list_position, list_selected_index, (out_x, out_y) = greedy_search_sliding_window(temp, texts, [80, 80, 80, 80], [(2276, 2276), (1600, 1600), (1200, 1200), (1900, 1900)], model, tokenizer)
+            # original_texts = ['look for the red beverage cooler or refrigerator to the left of the man setting the table.', 'look to the bottom left of the cooler.', 'An iPod is at the bottom left, slightly off the ground.']
+            original_texts = ['find a brown door on the right of the room.', 'locate the candles that are close to the door.', 'waldo is on the wall right on top of the last candle that is on the left at the same level that is the air ventilation.']
+            # original_texts = ['find the small little step that you can step on to get up on the stage.', 'the back red colored wall has a large window.', 'above the window along where the wall meets the ceiling is a silver air vent.', 'waldo is on top of that air vent and his hand is pointing up to the round white light along the white pillar that people are sitting in front of.']
+            original_texts = list_data_dict[list_panorama_filename[sample_idx]]['refexp']
 
-    print(f"after greedy search: (x, y) = {(out_x, out_y)}")
-
-    for i in list_position:
-        print(get_width_height(i))
-
-
-    # ! plot step by step greedy search (heatmap, window)
-    # ! n steps -> n heatmaps + n windows = 2n
-
-
-    fig, axes = plt.subplots(len(list_similarity) + 2, 2)
-    fig.set_size_inches(10, 15)
-
-    # * First row: full panorama
-    axes[0, 0].imshow(Image.fromarray(temp))
+            accumulated_texts = [' '.join(original_texts[:i+1]) for (i, e) in enumerate(original_texts)]
+            all_texts = [' '.join(original_texts) for i in range(len(original_texts) - 1)]
+            all_but_last_texts = all_texts[:-1] + [original_texts[-1]]
+            except_final_texts = [' '.join(original_texts[:-1]) for i in range(len(original_texts) - 1)] + [all_texts[0]]
+            texts = except_final_texts
 
 
-    # * Second ~ one before last row: sliding window search
-    for i, similarity in enumerate(list_similarity):
-        axes[i+1, 0].imshow(preprocess(Image.fromarray(list_selected_window[i]).convert("RGB")).permute(1,2,0))
-        axes[i+1, 0].set_title(split_long_sentence(texts[i]))
+            # ! texts input should be a list (text_features does so)
 
-        axes[i+1, 1].imshow(np.array(similarity).reshape(get_width_height(list_position[i])), cmap=plt.cm.viridis)
-        axes[i+1, 1].set_title(f'{list_position[i][list_selected_index[i]]}, {similarity[0][list_selected_index[i]]}')
+            # fn = "../data/refer360images/indoor/restaurant/pano_apqqbmmivfquan.jpg"
+            # fn = "../data/refer360images/indoor/restaurant/pano_afzjkcqouejqpf.jpg"
+            # fn = "../data/refer360images/indoor/restaurant/pano_aiqboxmskwofbk.jpg"
+            fn = list_panorama_filename[sample_idx]
 
-    # plt.suptitle(texts[0][0])
+            # * Repeat the image twice to make it loop (connection between left and right)
+            panorama = Image.open(fn).convert('RGB')
+            panorama_twice = Image.new('RGB', (4552*2, 2276), (255, 255, 255))
+            panorama_twice.paste(panorama, (0,0))
+            panorama_twice.paste(panorama, (4552, 0))
 
+            
 
-    # ! Then perform overlay grid search on the last selected window
-    # * last row: "ipod" grid search
-    last_similarity, last_images, idx_max_similarity, list_grid_position, (overlay_w, overlay_h) = single_image_grid_search(list_selected_window[-1], accumulated_texts[-1], model, tokenizer, 25, 25, safe=False)
+            temp = np.array(panorama_twice)
+            # similarity, list_window, list_positions = greedy_search_sliding_window_step(temp, texts[0], 800, (1400, 1400), model, tokenizer)
 
-    out_x += list_grid_position[idx_max_similarity][0]
-    out_y += list_grid_position[idx_max_similarity][1]
+            list_similarity, list_selected_window, list_position, list_selected_index, (out_x, out_y) = greedy_search_sliding_window(temp, texts, [80, 80, 80, 80], [(2276, 2276), (1600, 1600), (1200, 1200), (1100, 1100)], model, tokenizer)
 
-    print(f"after grid overlay search: (x, y) = {(out_x + overlay_w/2, out_y + overlay_h/2)}")
+            print(f"after greedy search: (x, y) = {(out_x, out_y)}")
 
-    def get_coordinates(xlng, ylat,
-                    full_w=4552,
-                    full_h=2276):
-        '''given lng lat returns coordinates in panorama image
-        '''
-        x = int(full_w * ((xlng + 180)/360.0))
-        y = int(full_h - full_h * ((ylat + 90)/180.0))
-        return x, y
+            for i in list_position:
+                print(get_width_height(i))
 
 
-    actual_x, actual_y = get_coordinates(99.12662544347826, -13.992525616350582)
-    print(f"ground truth: (x, y) = {(actual_x, actual_y)}")
-
-    flattened_last_images = []
-    for i in last_images:
-        flattened_last_images.extend(i)
-
-    axes[-1, 0].imshow(preprocess(flattened_last_images[idx_max_similarity].convert("RGB")).permute(1,2,0))
-    axes[-1, 0].set_title(split_long_sentence(texts[-1]))
-
-    similarity_width = int(last_similarity.shape[1]**0.5)
-
-    axes[-1, 1].imshow(np.array(last_similarity).reshape((similarity_width, similarity_width)), cmap=plt.cm.viridis)
-    axes[-1, 1].set_title(last_similarity[0][list_selected_index[-1]])
+            # ! plot step by step greedy search (heatmap, window)
+            # ! n steps -> n heatmaps + n windows = 2n
 
 
-    plt.tight_layout()
-    plt.savefig('./result_images/greedy_search_1.png')
-    fig.clf()
+            fig, axes = plt.subplots(len(list_similarity) + 2, 2)
+            fig.set_size_inches(10, 20)
 
+            # * First row: full panorama
+            axes[0, 0].imshow(Image.fromarray(temp))
+
+
+            # * Second ~ one before last row: sliding window search
+            for i, similarity in enumerate(list_similarity):
+                axes[i+1, 0].imshow(preprocess(Image.fromarray(list_selected_window[i]).convert("RGB")).permute(1,2,0))
+                axes[i+1, 0].set_title(split_long_sentence(texts[i]))
+
+                axes[i+1, 1].imshow(np.array(similarity).reshape(get_width_height(list_position[i])), cmap=plt.cm.viridis)
+                axes[i+1, 1].set_title(f'{list_position[i][list_selected_index[i]]}, {similarity[0][list_selected_index[i]]}')
+
+            # plt.suptitle(texts[0][0])
+
+
+            # ! Then perform overlay grid search on the last selected window
+            # * last row: "ipod" grid search
+            last_similarity, last_images, idx_max_similarity, list_grid_position, (overlay_w, overlay_h) = single_image_grid_search(list_selected_window[-1], accumulated_texts[-1], model, tokenizer, 25, 25, safe=False)
+
+            top_10 = sorted(last_similarity[0].tolist())[::-1][:10]
+            print(top_10)
+
+            top_10_positions = []
+            for i in top_10:
+                idx = last_similarity[0].tolist().index(i)
+                top_10_positions.append(list_grid_position[idx])
+            
+            top_10_positions = [(i[0] + out_x + overlay_w/2, i[1] + out_y + overlay_h/2) for i in top_10_positions]
+
+            print(f'top 10 positions: {top_10_positions}')
+
+            out_x += list_grid_position[idx_max_similarity][0]
+            out_y += list_grid_position[idx_max_similarity][1]
+
+            print(f"after grid overlay search: (x, y) = {(out_x + overlay_w/2, out_y + overlay_h/2)}")
+
+            
+            # actual_x, actual_y = get_coordinates(99.12662544347826, -13.992525616350582)
+            actual_x, actual_y = list_data_dict[list_panorama_filename[sample_idx]]['coordinates']
+            print(f"ground truth: (x, y) = {(actual_x, actual_y)}")
+
+            flattened_last_images = []
+            for i in last_images:
+                flattened_last_images.extend(i)
+
+            axes[-1, 0].imshow(preprocess(flattened_last_images[idx_max_similarity].convert("RGB")).permute(1,2,0))
+            axes[-1, 0].set_title(split_long_sentence(texts[-1]))
+
+            similarity_width = int(last_similarity.shape[1]**0.5)
+
+            axes[-1, 1].imshow(np.array(last_similarity).reshape((similarity_width, similarity_width)), cmap=plt.cm.viridis)
+            axes[-1, 1].set_title(last_similarity[0][list_selected_index[-1]])
+
+
+            # ! Mark ground truth and top 10 predictions on the panorama
+            colors = [(0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)] * 2
+
+            draw = ImageDraw.Draw(panorama_twice)
+            font = ImageFont.truetype("NotoSans-Bold.ttf", 400)
+            for i, e in enumerate(top_10):
+                draw.text(top_10_positions[i],f'{i}', colors[i], font=font)
+            draw.text((actual_x, actual_y),'X',(255, 0, 0), font=font)
+            draw.text((actual_x + 4552, actual_y),'X',(255, 0, 0), font=font)
+
+            axes[0, 1].imshow(panorama_twice)
+
+
+            plt.suptitle(f'ground truth: {(actual_x, actual_y)},\ntop_10_pred = {top_10_positions[:5]}\n{str(top_10_positions[5:])},\ntop_10_similarities = {[round(i, 4) for i in top_10[:10]]}')
+
+            plt.tight_layout()
+            plt.savefig(f'./result_images/auto/gs_auto_{sample_idx}.png')
+            fig.clf()
+
+        except Exception as e:
+            print(e)

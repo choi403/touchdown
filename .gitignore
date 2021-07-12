@@ -2,3 +2,4 @@ __pycache__/
 .history/
 .vscode/
 sdr/model.pt
+data/refer360images/*
