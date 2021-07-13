@@ -528,7 +528,7 @@ def split_long_sentence(text, break_len=60):
 if __name__ == '__main__':
     sample_idx = 12
 
-    for sample_idx in range(110, 400):
+    for sample_idx in range(0, 800):
         try:
 
             list_data_dict, list_panorama_filename = load_refer360_data(test_seen_filename)
@@ -659,6 +659,9 @@ if __name__ == '__main__':
             draw.text((actual_x + 4552, actual_y),'X',(255, 0, 0), font=font)
 
             axes[0, 1].imshow(panorama_twice)
+
+            with open('./result_values/test.txt', mode='a', encoding='utf8') as f:
+                f.write(f'{sample_idx}\t{list_panorama_filename[sample_idx]}\t{(actual_x, actual_y)}\t{top_10}\t{top_10_positions}\n')
 
 
             plt.suptitle(f'ground truth: {(actual_x, actual_y)},\ntop_10_pred = {top_10_positions[:5]}\n{str(top_10_positions[5:])},\ntop_10_similarities = {[round(i, 4) for i in top_10[:10]]}')
