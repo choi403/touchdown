@@ -667,7 +667,7 @@ if __name__ == '__main__':
             plt.suptitle(f'ground truth: {(actual_x, actual_y)},\ntop_10_pred = {top_10_positions[:5]}\n{str(top_10_positions[5:])},\ntop_10_similarities = {[round(i, 4) for i in top_10[:10]]}')
 
             plt.tight_layout()
-            plt.savefig(f'./result_images/auto/gs_auto_{sample_idx}.png')
+            # plt.savefig(f'./result_images/auto/gs_auto_{sample_idx}.png')
             fig.clf()
 
         except Exception as e:
